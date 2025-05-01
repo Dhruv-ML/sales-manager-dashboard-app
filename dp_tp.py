@@ -2,21 +2,19 @@ import streamlit as st
 import altair as alt
 import pandas as pd
 
-# Sample DataFrame for demonstration (replace with your own dpw DataFrame)
-# dpw = pd.read_csv('your_data.csv')
-# For now, we create a placeholder DataFrame for illustration
-# Remove this when using your actual DataFrame
-
+# Load your data
 dpw = pd.read_csv('sales lead manager.csv', encoding='latin-1')
+dpw['Label'] = dpw['First Name'] + ' ' + dpw['Last Name']
 
-# Sort cities
-city_sorted = sorted(dpw['City'].unique())
+# Sort lists
+city_sorted = sorted(dpw['City'].dropna().unique())
+country_sorted = sorted(dpw['Country'].dropna().unique())
 
-# Streamlit app title
+# App title
 st.title("Sales Freight Forwarding Manager Talent Mapping")
-
 st.markdown("<br>", unsafe_allow_html=True)
-# Create Altair bindings and selections
+
+# Altair bindings & selections
 slider_ffe = alt.binding_range(name='Freight Forwarding Exp.', min=0, max=40, step=1)
 dropdown_city = alt.binding_select(name='City: ', options=city_sorted)
 
@@ -47,8 +45,10 @@ mapping = alt.Chart(dpw).mark_circle(size=60).encode(
     y='Sales Management Experience',
     color=alt.Color('Level of Position:N', title='Level', scale=alt.Scale(scheme='tableau20')),
     opacity=alt.condition(select_level, alt.value(0.8), alt.value(0.00)),
-    tooltip=['First Name', 'Last Name', 'Total Experience', 'Sales Management Experience', 
-             'Freight Forwarding Experience', 'Current Position', 'Company Name', 'Country'],
+    tooltip=[
+        'First Name', 'Last Name', 'Total Experience', 'Sales Management Experience', 
+        'Freight Forwarding Experience', 'Current Position', 'Company Name', 'Country'
+    ],
 ).transform_filter(
     selection_ffe & selection_city & selection_country
 ).properties(
@@ -61,25 +61,28 @@ mapping = alt.Chart(dpw).mark_circle(size=60).encode(
     select_level
 ).interactive()
 
-# Combine the plots
+# Combine plot 1
 plot1 = alt.hconcat(chart, mapping, spacing=30)
-
-# Display the plot in Streamlit
 st.altair_chart(plot1, use_container_width=True)
 
-# --- Add vertical space between plot1 and plot2 ---
+# 🔎 Add person selection + LinkedIn for plot1
+st.markdown("### 🔗 View LinkedIn from the plot")
+selected_label_1 = st.selectbox("Select a talent (plot 1):", dpw['Label'].unique())
+person_1 = dpw[dpw['Label'] == selected_label_1]
+if not person_1.empty:
+    url_1 = person_1['LinkedIn'].values[0]
+    st.markdown(f"🔗 [View {selected_label_1}'s LinkedIn Profile]({url_1})", unsafe_allow_html=True)
+
+# --- Spacer ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 
-
-### ----------- SECOND VISUALIZATION (DP World vs Competitor Talent) -----------
-
+# ========== SECOND VISUALIZATION (DP World vs Competitor Talent) ==========
 dp_world_candidates = dpw[dpw['Company Name'] == 'DP World']
 other_candidates = dpw[dpw['Company Name'] != 'DP World']
-country_sorted = sorted(dpw['Country'].unique())
 
 company_dropdown = alt.binding_select(
     name='Select Company: ',
-    options=other_candidates['Company Name'].unique().tolist()
+    options=sorted(other_candidates['Company Name'].dropna().unique())
 )
 
 country_dropdown = alt.binding_select(name='Country: ', options=country_sorted)
@@ -88,12 +91,15 @@ company_selection = alt.selection_point(fields=['Company Name'], bind=company_dr
 country_selection = alt.selection_point(fields=['Country'], bind=country_dropdown)
 selection_level = alt.selection_point(fields=['Level of Position'], bind='legend')
 
+# DP World talent pool plot
 scatter_plot = alt.Chart(dp_world_candidates).mark_circle(size=60).encode(
     x='Total Experience:Q',
     y='Freight Forwarding Experience:Q',
     color=alt.Color('Level of Position:N', legend=alt.Legend(title='Level of Position')),
-    tooltip=['First Name', 'Last Name', 'Total Experience', 'Freight Forwarding Experience', 
-             'Current Position', 'Company Name', 'Country'],
+    tooltip=[
+        'First Name', 'Last Name', 'Total Experience', 'Freight Forwarding Experience', 
+        'Current Position', 'Company Name', 'Country'
+    ],
     opacity=alt.condition(selection_level, alt.value(0.9), alt.value(0.10))
 ).transform_filter(
     country_selection
@@ -103,12 +109,15 @@ scatter_plot = alt.Chart(dp_world_candidates).mark_circle(size=60).encode(
     title=alt.TitleParams(text='Logistic firm Talent Pool (client)', anchor='middle')
 ).add_params(selection_level).interactive()
 
+# Competitor plot
 scatter_plot_other = alt.Chart(other_candidates).mark_circle(size=60).encode(
     x='Total Experience:Q',
     y='Freight Forwarding Experience:Q',
     color=alt.Color('Level of Position:N', legend=alt.Legend(title='Level of Position')),
-    tooltip=['First Name', 'Last Name', 'Total Experience', 'Freight Forwarding Experience', 
-             'Level of Position', 'Company Name', 'City'],
+    tooltip=[
+        'First Name', 'Last Name', 'Total Experience', 'Freight Forwarding Experience', 
+        'Level of Position', 'Company Name', 'City'
+    ],
     opacity=alt.condition(company_selection, alt.value(0.9), alt.value(0.10))
 ).transform_filter(
     country_selection & selection_level
@@ -121,6 +130,13 @@ scatter_plot_other = alt.Chart(other_candidates).mark_circle(size=60).encode(
 ).interactive()
 
 plot2 = alt.hconcat(scatter_plot_other, scatter_plot, spacing=30)
-
-# Display second plot below
 st.altair_chart(plot2, use_container_width=True)
+
+# 🔎 Add person selection + LinkedIn for plot2
+st.markdown("### 🔗 View LinkedIn from Talent Pool Comparison")
+selected_label_2 = st.selectbox("Select a talent (plot 2):", dpw['Label'].unique())
+person_2 = dpw[dpw['Label'] == selected_label_2]
+if not person_2.empty:
+    url_2 = person_2['LinkedIn'].values[0]
+    st.markdown(f"🔗 [View {selected_label_2}'s LinkedIn Profile]({url_2})", unsafe_allow_html=True)
+    
